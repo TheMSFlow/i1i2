@@ -67,6 +67,8 @@
   let selectedSize = null;
   let selectedPreset = null;
   let tickHandle = null;
+  let audioCtx = null;
+  let wakeLock = null;
 
   /* ---------- setup screen ---------- */
 
@@ -82,15 +84,15 @@
 
   function validateSetup() {
     const n = parseInt(playerCountInput.value, 10);
-    const valid = selectedSize && n >= 2;
+    const valid = selectedSize && n >= selectedSize * 2;
     createGroupsBtn.disabled = !valid;
     setupError.hidden = true;
   }
 
   createGroupsBtn.addEventListener('click', () => {
     const n = parseInt(playerCountInput.value, 10);
-    if (!selectedSize || !n || n < selectedSize) {
-      setupError.textContent = `You need at least ${selectedSize} players for a ${selectedSize}v${selectedSize} game.`;
+    if (!selectedSize || !n || n < selectedSize * 2) {
+      setupError.textContent = `You need at least ${selectedSize * 2} players to field two ${selectedSize}v${selectedSize} squads.`;
       setupError.hidden = false;
       return;
     }
@@ -164,6 +166,13 @@
     state.active[loserSlot] = nextId;
     if (nextId !== null) state.streaks[nextId] = 0;
 
+    // fresh clock for the new matchup
+    state.remaining = state.duration;
+    if (state.timerRunning) {
+      state.timerEndsAt = Date.now() + state.remaining * 1000;
+      runTick();
+    }
+
     save();
     render();
   }
@@ -203,7 +212,46 @@
     setDuration(m);
   });
 
+  /* ---------- audio + wake lock ---------- */
+
+  // Create/resume the AudioContext from within a user gesture so the whistle
+  // is allowed to sound later (iOS Safari blocks contexts created off-gesture).
+  function ensureAudio() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      if (!audioCtx) audioCtx = new Ctx();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+      }
+    } catch (e) {
+      // denied or unsupported, ignore
+    }
+  }
+
+  function releaseWakeLock() {
+    try {
+      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+    } catch (e) { /* ignore */ }
+  }
+
+  // The OS auto-drops a wake lock when the tab is hidden; re-acquire on return.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.timerRunning) requestWakeLock();
+  });
+
   startTimerBtn.addEventListener('click', () => {
+    ensureAudio();
+    requestWakeLock();
     state.timerRunning = true;
     state.timerEndsAt = Date.now() + state.remaining * 1000;
     save();
@@ -215,11 +263,14 @@
     state.timerRunning = false;
     state.remaining = Math.max(0, Math.round((state.timerEndsAt - Date.now()) / 1000));
     state.timerEndsAt = null;
+    releaseWakeLock();
     save();
     render();
   });
 
   resumeTimerBtn.addEventListener('click', () => {
+    ensureAudio();
+    requestWakeLock();
     state.timerRunning = true;
     state.timerEndsAt = Date.now() + state.remaining * 1000;
     save();
@@ -244,6 +295,7 @@
   function onTimerExpire() {
     state.timerRunning = false;
     state.timerEndsAt = null;
+    releaseWakeLock();
 
     playWhistle();
     flashScreen();
@@ -268,8 +320,8 @@
 
   function playWhistle() {
     try {
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      const ctx = new Ctx();
+      const ctx = ensureAudio();
+      if (!ctx) return;
       const now = ctx.currentTime;
       const duration = 1.3;
 
@@ -300,8 +352,7 @@
       tremolo.start(now);
       osc.stop(now + duration);
       tremolo.stop(now + duration);
-
-      osc.onended = () => ctx.close();
+      // reuse the shared context; do not close it
     } catch (e) {
       // audio not available, fail silently
     }
@@ -390,6 +441,7 @@
   newGameBtn.addEventListener('click', () => {
     if (!confirm('Start a new game? This clears the current squads and queue.')) return;
     clearInterval(tickHandle);
+    releaseWakeLock();
     localStorage.removeItem(STORAGE_KEY);
     state = {
       sideSize: null, groups: [], queue: [], active: [null, null],
@@ -413,6 +465,7 @@
       if (remaining <= 0) {
         onTimerExpire();
       } else {
+        requestWakeLock();
         runTick();
       }
     }
