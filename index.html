@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>i1i2 — Squad Picker</title>
+<meta name="description" content="Random squad pairing for pickup football games." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="pitch-bg" aria-hidden="true"></div>
+
+<header class="wordmark">
+  <span class="wm-i">i1</span><span class="wm-x">×</span><span class="wm-i">i2</span>
+  <span class="wm-tag">squad picker</span>
+</header>
+
+<main id="app">
+
+  <!-- SETUP SCREEN -->
+  <section id="setup-screen" class="screen">
+    <h1 class="screen-title">Line up the game</h1>
+
+    <div class="field-block">
+      <label class="field-label">1. Format</label>
+      <div class="format-grid" id="format-grid">
+        <button class="format-btn" data-size="4">4<span>v</span>4</button>
+        <button class="format-btn" data-size="5">5<span>v</span>5</button>
+        <button class="format-btn" data-size="7">7<span>v</span>7</button>
+        <button class="format-btn" data-size="11">11<span>v</span>11</button>
+      </div>
+    </div>
+
+    <div class="field-block">
+      <label class="field-label" for="player-count">2. Players on the pitch</label>
+      <input type="number" id="player-count" min="2" max="200" placeholder="e.g. 18" inputmode="numeric" />
+      <p class="field-hint">Get everyone to call a number, 1 through however many showed up, before you tap continue.</p>
+    </div>
+
+    <button id="create-groups-btn" class="btn-primary" disabled>Shuffle into squads</button>
+    <p id="setup-error" class="error-text" hidden></p>
+  </section>
+
+  <!-- GAME SCREEN -->
+  <section id="game-screen" class="screen" hidden>
+
+    <div class="matchup" id="matchup">
+      <div class="team-card team-a" id="team-a">
+        <div class="team-label" id="team-a-label">Squad A</div>
+        <div class="team-numbers" id="team-a-numbers"></div>
+        <div class="streak" id="team-a-streak" hidden><span class="streak-flame">🔥</span><span id="team-a-streak-count">0</span></div>
+        <button class="btn-goal" id="team-a-goal">⚽ Scores</button>
+      </div>
+
+      <div class="vs-mark" aria-hidden="true">
+        <div class="kickoff-circle"></div>
+        <span>VS</span>
+      </div>
+
+      <div class="team-card team-b" id="team-b">
+        <div class="team-label" id="team-b-label">Squad B</div>
+        <div class="team-numbers" id="team-b-numbers"></div>
+        <div class="streak" id="team-b-streak" hidden><span class="streak-flame">🔥</span><span id="team-b-streak-count">0</span></div>
+        <button class="btn-goal" id="team-b-goal">⚽ Scores</button>
+      </div>
+    </div>
+
+    <div class="timer-panel">
+      <div class="timer-display" id="timer-display">05:00</div>
+
+      <div class="timer-controls" id="timer-setup-controls">
+        <div class="duration-row">
+          <label class="field-label" for="duration-input">Round length (minutes)</label>
+          <input type="number" id="duration-input" min="1" max="60" value="5" inputmode="numeric" />
+        </div>
+        <div class="preset-row">
+          <button class="preset-btn" data-min="3">3m</button>
+          <button class="preset-btn" data-min="5">5m</button>
+          <button class="preset-btn" data-min="10">10m</button>
+          <button class="preset-btn" data-min="15">15m</button>
+        </div>
+        <button id="start-timer-btn" class="btn-primary">Start round</button>
+      </div>
+
+      <div class="timer-controls" id="timer-running-controls" hidden>
+        <button id="pause-timer-btn" class="btn-secondary">Pause</button>
+        <button id="resume-timer-btn" class="btn-secondary" hidden>Resume</button>
+      </div>
+    </div>
+
+    <div class="queue-panel">
+      <h2 class="queue-title">Waiting to play</h2>
+      <ol class="queue-list" id="queue-list"></ol>
+      <p class="queue-empty" id="queue-empty" hidden>Nobody waiting, everyone's already on the pitch.</p>
+    </div>
+
+    <button id="new-game-btn" class="btn-text">Start a new game</button>
+  </section>
+
+</main>
+
+<div class="whistle-flash" id="whistle-flash" aria-hidden="true"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
